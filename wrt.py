@@ -113,7 +113,7 @@ def run_word_recognition_test(speaker, word_list, log_file=None):
     incorrect_words = []
     user_stopped = False
     if log_file is not None:
-        log = open(log_file, "a")
+        log = open(log_file, "a", encoding="utf-8")
     try:
         for word_spellings in word_list:
             if isinstance(word_spellings, str):
@@ -196,7 +196,7 @@ def main():
     )
 
     word_list = []
-    with open(args.list) as inFile:
+    with open(args.list, "r", encoding="utf-8") as inFile:
         word_list = [
             line.split("/")
             for line in inFile.read().splitlines()
@@ -217,7 +217,7 @@ def main():
         f"Welcome to the word recognition test. The word list has {len(word_list)} words. At any time, press Ctrl+C to stop."
     )
     incorrect_words = run_word_recognition_test(speaker, word_list, log_file)
-    with open("./incorrect_words.txt", "w+") as outFile:
+    with open("./incorrect_words.txt", "w+", encoding="utf-8") as outFile:
         outFile.writelines(w + "\n" for w in incorrect_words)
 
 
