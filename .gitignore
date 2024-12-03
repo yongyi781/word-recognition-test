@@ -1,0 +1,4 @@
+__pycache__/
+audio/
+incorrect_words.txt
+*.log
