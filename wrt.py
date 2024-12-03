@@ -21,11 +21,13 @@ class bcolors:
 
 
 class Speaker:
+    volume = 0.35
+
     def __init__(self):
         from pygame import mixer
 
         mixer.init()
-        mixer.music.set_volume(0.35)
+        mixer.music.set_volume(self.volume)
         self.mixer = mixer
 
     def speak_from_file(self, filename):
@@ -35,13 +37,20 @@ class Speaker:
             pass
         self.mixer.music.unload()
 
+    def set_volume(self, volume):
+        self.volume = volume
+        self.mixer.music.set_volume(volume)
+
     def set_voice(self, voice): ...
     def speak(self, text): ...
 
 
 class GTTSSpeaker(Speaker):
+    name = "gTTS"
+    voice = ""
+
     def set_voice(self, voice):
-        pass
+        self.voice = ""
 
     def speak(self, text):
         from gtts import gTTS
@@ -55,21 +64,34 @@ class GTTSSpeaker(Speaker):
 
 
 class Pyttsx3Speaker(Speaker):
+    name = "pyttsx3"
+
     def __init__(self):
         import pyttsx3
 
         super().__init__()
         self.engine = pyttsx3.init(driverName="sapi5")
         self.engine.setProperty("rate", 120)
-        voices = self.engine.getProperty("voices")
-        volumes = [0.7, 0.7, 0.7]
-        voiceIndex = next(i for i, v in enumerate(voices) if "Zira" in v.name)
+        self.voices = self.engine.getProperty("voices")
 
-        self.engine.setProperty("voice", voices[voiceIndex].id)
-        self.engine.setProperty("volume", volumes[voiceIndex])
+        self.set_voice("Zira")
+        self.set_volume(0.5)
+
+    def set_volume(self, volume):
+        self.volume = volume
+        self.engine.setProperty("volume", volume)
 
     def set_voice(self, voice):
-        self.engine.setProperty("voice", voice)
+        voiceIndex = next(
+            (i for i, v in enumerate(self.voices) if voice in v.name), None
+        )
+        if voiceIndex is None:
+            print(
+                f"Voice not found, so using default voice: {self.voice}. Available voices:\n  {"\n  ".join(v.name for v in self.voices)}"
+            )
+        else:
+            self.voice = voice
+            self.engine.setProperty("voice", self.voices[voiceIndex].id)
 
     def speak(self, text):
         self.engine.say(text)
@@ -77,6 +99,7 @@ class Pyttsx3Speaker(Speaker):
 
 
 class EdgeSpeaker(Speaker):
+    name = "edge"
     voice = "en-US-AriaNeural"
 
     def set_voice(self, voice):
@@ -105,7 +128,19 @@ class EdgeSpeaker(Speaker):
         self.speak_from_file(filename)
 
 
-def run_word_recognition_test(speaker, word_list, log_file=None):
+def run_word_recognition_test(speaker, list_file, log_file=None):
+    word_list = []
+    with open(list_file, "r", encoding="utf-8") as inFile:
+        word_list = [
+            line.split("/")
+            for line in inFile.read().splitlines()
+            if len(line) > 0 and not line.startswith("#")
+        ]
+    random.shuffle(word_list)
+
+    print(
+        f"Welcome to the word recognition test. The word list has {len(word_list)} words. At any time, press Ctrl+C to stop."
+    )
     total = 0
     totalCorrect = 0
 
@@ -115,6 +150,10 @@ def run_word_recognition_test(speaker, word_list, log_file=None):
     if log_file is not None:
         log = open(log_file, "a", encoding="utf-8")
     try:
+        if log is not None:
+            log.write(
+                f"# Word list: {list_file}\n# TTS: {speaker.name}\n# Voice: {speaker.voice}\n# Volume: {speaker.volume}\n"
+            )
         for word_spellings in word_list:
             if isinstance(word_spellings, str):
                 word_spellings = [word_spellings]
@@ -158,7 +197,7 @@ def run_word_recognition_test(speaker, word_list, log_file=None):
             )
             print(message + f"\nIncorrect words: {incorrect_words}")
             if log is not None:
-                log.write(f"# {message}\n# Timestamp: {datetime.now()}\n")
+                log.write(f"# {message}\n# Timestamp: {datetime.now()}\n\n")
         return incorrect_words
 
 
@@ -186,6 +225,7 @@ def main():
         default="edge",
     )
     parser.add_argument("-v", "--voice", type=str, help="Voice to use")
+    parser.add_argument("-V", "--volume", type=float, help="Volume")
 
     args = parser.parse_args()
 
@@ -194,15 +234,6 @@ def main():
         if args.list == default_list_file
         else f"wrt_{args.condition_name}_custom.log"
     )
-
-    word_list = []
-    with open(args.list, "r", encoding="utf-8") as inFile:
-        word_list = [
-            line.split("/")
-            for line in inFile.read().splitlines()
-            if len(line) > 0 and not line.startswith("#")
-        ]
-    random.shuffle(word_list)
 
     speaker = {
         "gtts": GTTSSpeaker,
@@ -213,10 +244,10 @@ def main():
     if args.voice is not None:
         speaker.set_voice(args.voice)
 
-    print(
-        f"Welcome to the word recognition test. The word list has {len(word_list)} words. At any time, press Ctrl+C to stop."
-    )
-    incorrect_words = run_word_recognition_test(speaker, word_list, log_file)
+    if args.volume is not None:
+        speaker.set_volume(args.volume)
+
+    incorrect_words = run_word_recognition_test(speaker, args.list, log_file)
     with open("./incorrect_words.txt", "w+", encoding="utf-8") as outFile:
         outFile.writelines(w + "\n" for w in incorrect_words)
 
