@@ -2,7 +2,7 @@
 
 ## Description
 
-This project is a word recognition test tool. It allows users to test their ability to recognize and spell words, and provides a score based on their performance.
+This project is a word recognition test tool. It allows users who are concerned about their hearing ability to test their word recognition in the safety of their own home.
 
 ## Installation
 
